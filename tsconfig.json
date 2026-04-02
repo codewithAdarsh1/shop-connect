@@ -19,6 +19,9 @@
       }
     ],
     "paths": {
+      "@/components/*": ["./src/modules/frontend/components/*"],
+      "@/lib/*": ["./src/modules/backend/lib/*"],
+      "@/utils/supabase/*": ["./src/modules/database/supabase/*"],
       "@/*": ["./src/*"]
     }
   },
