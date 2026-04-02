@@ -2,8 +2,9 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import type { WidgetConfig } from '@/types/widget'
 
-export async function saveWidgetConfig(config: any) {
+export async function saveWidgetConfig(config: WidgetConfig) {
   const supabase = await createClient()
   
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -60,5 +61,6 @@ export async function getWidgetConfig() {
     primaryColor: data.primary_color,
     allowTopics: data.allow_topics,
     provider: data.provider,
+    publicToken: data.public_token,
   }
 }
