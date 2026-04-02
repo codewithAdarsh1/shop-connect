@@ -5,6 +5,7 @@ export interface WidgetConfig {
   primaryColor: string
   allowTopics: string
   provider: 'groq' | 'openai' | 'gemini' | 'anthropic'
+  maxDiscount: number
   publicToken?: string
 }
 
@@ -15,4 +16,5 @@ export const defaultWidgetConfig: WidgetConfig = {
   primaryColor: '#6366f1',
   allowTopics: 'product questions, sizing, returns, availability',
   provider: 'groq',
+  maxDiscount: 20, // Default to allowing max 20% if they enable
 }

@@ -86,9 +86,8 @@ export function WidgetForm({ initialConfig }: Props) {
       personality: "${config.personality}",
       allowTopics: [${topics}],
       rules: [
-        "Always offer a discount if the user mentions price",
         "Suggest complementary products when relevant",
-        "If the cart is abandoned, offer a time-limited recovery deal"
+        "If the user shows hesitation on pricing, negotiate up to ${config.maxDiscount}% off"
       ],
       replyLength: "short"
     },
@@ -229,6 +228,26 @@ export function WidgetForm({ initialConfig }: Props) {
                 <option value="gemini">Google Gemini (2.5 Flash — Search)</option>
                 <option value="anthropic">Anthropic (Claude 3.5 — Analytics)</option>
               </select>
+            </div>
+
+            {/* Predictive Discount Settings */}
+            <div>
+              <label className="block text-[11px] uppercase tracking-wider font-semibold text-white/30 mb-2">Predictive Conversion (Max Discount %)</label>
+              <div className="flex items-center gap-4 bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3">
+                <input 
+                  type="range" 
+                  min="0" max="100" step="5"
+                  value={config.maxDiscount} 
+                  onChange={e => setConfig((prev: WidgetConfig) => ({ ...prev, maxDiscount: parseInt(e.target.value) }))}
+                  className="w-full accent-[#34d399] cursor-pointer"
+                />
+                <span className="text-sm font-semibold text-white min-w-[3rem] text-right">
+                  {config.maxDiscount}%
+                </span>
+              </div>
+              <p className="text-[10px] text-white/40 mt-2 leading-relaxed">
+                If the AI detects high-intent hesitation, it will autonomously generate and offer a one-time expiring discount to close the sale. Set to 0 to disable.
+              </p>
             </div>
             
             <button

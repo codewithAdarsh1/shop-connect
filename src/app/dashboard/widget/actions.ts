@@ -24,6 +24,7 @@ export async function saveWidgetConfig(config: WidgetConfig) {
         primary_color: config.primaryColor,
         allow_topics: config.allowTopics,
         provider: config.provider,
+        max_discount: config.maxDiscount,
         updated_at: new Date().toISOString()
       },
       { onConflict: 'user_id' }
@@ -61,6 +62,7 @@ export async function getWidgetConfig() {
     primaryColor: data.primary_color,
     allowTopics: data.allow_topics,
     provider: data.provider,
+    maxDiscount: data.max_discount,
     publicToken: data.public_token,
   }
 }

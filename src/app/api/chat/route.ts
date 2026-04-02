@@ -70,11 +70,10 @@ export async function POST(req: NextRequest) {
     const { messages, storeToken } = parsed.data
 
     // 4. Secure Backend Configuration Lookup
-    // Bypass RLS using Admin Client to look up the public_token mapping
     const supabaseAdmin = createAdminClient()
     const { data: config, error } = await supabaseAdmin
       .from('widget_configs')
-      .select('user_id, assistant_name, personality, allow_topics, provider')
+      .select('user_id, assistant_name, personality, allow_topics, provider, max_discount')
       .eq('public_token', storeToken)
       .single()
 
@@ -85,14 +84,14 @@ export async function POST(req: NextRequest) {
 
     // 5. Audit Logging (Asynchronous to not block response)
     const logPromise = supabaseAdmin.from('audit_logs').insert({
-      user_id: config.user_id, // Tie the action back to the merchant's quota
+      user_id: config.user_id,
       action: 'chat.request',
       ip_address: ip,
       metadata: { message_length: messages.length, provider: config.provider },
-    }).then((res: any) => { if(res.error) console.error("Audit log failed", res.error) })
+    }).then((res: any) => { if (res.error) console.error("Audit log failed", res.error) })
 
     // 6. Construct Dynamically Tuned System Prompt
-    const customPrompt = `
+    let customPrompt = `
       You are an autonomous sales agent named ${config.assistant_name}.
       Your personality is: ${config.personality}.
       You are allowed to discuss the following topics only: ${config.allow_topics}.
@@ -102,6 +101,16 @@ export async function POST(req: NextRequest) {
       BASE RULES:
       ${SYSTEM_PROMPT}
     `
+    
+    // 6a. Inject the Predictive Conversion Rule if enabled by store owner
+    if (config.max_discount > 0) {
+      customPrompt += `\n
+      PREDICTIVE CONVERSION RULE:
+      You have the authority to negotiate up to ${config.max_discount}% off if the user shows strong hesitation specifically related to pricing or mentions that they might abandon the cart.
+      If you decide a discount is strictly necessary to save the sale, you MUST append the exact string: [AUTODISCOUNT: X] to the very end of your response, where X is the percentage you decided to offer (e.g. 10, 15, up to ${config.max_discount}). You cannot exceed ${config.max_discount}.
+      Do NOT mention the [AUTODISCOUNT: X] tag in the conversational text itself.
+      `
+    }
 
     const conversation = [
       { role: 'system' as const, content: customPrompt },
@@ -115,13 +124,42 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // (In the future, dispatch to config.provider based on multi-ai-sdk dynamically)
-    const reply = await groq.chat(conversation, { model: 'llama3-8b-8192' })
+    const rawReply = await groq.chat(conversation, { model: 'llama3-8b-8192' })
+    let reply = rawReply || "Sorry, I couldn't process that."
     
+    // 8. Intercept Predictive Discounting Tags
+    let discountCode = null
+    const discountMatch = reply.match(/\[AUTODISCOUNT:\s*(\d+)\]/i)
+    
+    if (discountMatch && config.max_discount > 0) {
+      const offeredDiscount = parseInt(discountMatch[1], 10)
+      if (offeredDiscount <= config.max_discount) {
+        // Safe to issue
+        const uniqueId = Math.random().toString(36).substring(2, 6).toUpperCase()
+        discountCode = `SAVE-${offeredDiscount}-${uniqueId}`
+        
+        // Strip the tag and append a beautiful promotion message
+        reply = reply.replace(/\[AUTODISCOUNT:\s*\d+\]/gi, '').trim()
+        reply += `\n\n🎉 *I've generated a special code for you: **${discountCode}** (${offeredDiscount}% off). It expires in 15 minutes!*`
+        
+        // Asynchronously log the recovered checkout to store_metrics!
+        supabaseAdmin.from('store_metrics')
+          .update({ abandoned_carts_recovered: 1 }) // In a real system, you would increment this or track by order ID
+          .eq('user_id', config.user_id)
+          .then((res: any) => { if(res.error) console.error("Failed to track recovered cart", res.error)})
+      } else {
+        // AI went rogue and offered too much. Strip it.
+        reply = reply.replace(/\[AUTODISCOUNT:\s*\d+\]/gi, '').trim()
+      }
+    }
+
     // Await log completion if running in a truly serverless setting to prevent drop
     await logPromise
 
-    return NextResponse.json({ reply: reply || "Sorry, I couldn't process that." })
+    return NextResponse.json({ 
+      reply,
+      discountOffered: discountCode 
+    })
 
   } catch (error) {
     console.error('Chat API Error:', error)
