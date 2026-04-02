@@ -25,6 +25,7 @@ export async function saveWidgetConfig(config: WidgetConfig) {
         allow_topics: config.allowTopics,
         provider: config.provider,
         max_discount: config.maxDiscount,
+        liquidate_items: config.liquidateItems,
         updated_at: new Date().toISOString()
       },
       { onConflict: 'user_id' }
@@ -63,6 +64,7 @@ export async function getWidgetConfig() {
     allowTopics: data.allow_topics,
     provider: data.provider,
     maxDiscount: data.max_discount,
+    liquidateItems: data.liquidate_items,
     publicToken: data.public_token,
   }
 }

@@ -87,7 +87,7 @@ export function WidgetForm({ initialConfig }: Props) {
       allowTopics: [${topics}],
       rules: [
         "Suggest complementary products when relevant",
-        "If the user shows hesitation on pricing, negotiate up to ${config.maxDiscount}% off"
+        "If the user asks about order status, ask for their Order ID to check it."
       ],
       replyLength: "short"
     },
@@ -216,6 +216,23 @@ export function WidgetForm({ initialConfig }: Props) {
                 onChange={e => setConfig(p => ({ ...p, allowTopics: e.target.value }))}
                 className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#6366f1]/60 focus:bg-white/[0.06] transition-all shadow-inner"
               />
+            </div>
+
+            {/* Inventory Liquidation */}
+            <div>
+              <label className="block text-[11px] uppercase tracking-wider font-semibold text-white/30 mb-2 flex items-center justify-between">
+                <span>Inventory Liquidation Targets</span>
+                <span className="text-[#34d399] bg-[#34d399]/10 px-1.5 py-0.5 rounded text-[9px] font-bold">AUTONOMOUS</span>
+              </label>
+              <input
+                value={config.liquidateItems}
+                onChange={e => setConfig(p => ({ ...p, liquidateItems: e.target.value }))}
+                placeholder="e.g. Red Winter Jackets, Size XL Shoes"
+                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#6366f1]/60 focus:bg-white/[0.06] transition-all shadow-inner placeholder:text-white/20"
+              />
+              <p className="text-[10px] text-white/40 mt-2 leading-relaxed">
+                If specified, the AI will autonomously seek organic opportunities to explicitly push these specific products to clear out dead warehouse stock.
+              </p>
             </div>
 
             {/* Provider */}

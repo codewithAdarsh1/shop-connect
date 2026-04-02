@@ -6,6 +6,7 @@ export interface WidgetConfig {
   allowTopics: string
   provider: 'groq' | 'openai' | 'gemini' | 'anthropic'
   maxDiscount: number
+  liquidateItems: string
   publicToken?: string
 }
 
@@ -17,4 +18,5 @@ export const defaultWidgetConfig: WidgetConfig = {
   allowTopics: 'product questions, sizing, returns, availability',
   provider: 'groq',
   maxDiscount: 20, // Default to allowing max 20% if they enable
+  liquidateItems: '', // Comma separated items to push
 }

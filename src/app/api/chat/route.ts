@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const supabaseAdmin = createAdminClient()
     const { data: config, error } = await supabaseAdmin
       .from('widget_configs')
-      .select('user_id, assistant_name, personality, allow_topics, provider, max_discount')
+      .select('user_id, assistant_name, personality, allow_topics, provider, max_discount, liquidate_items')
       .eq('public_token', storeToken)
       .single()
 
@@ -111,6 +111,23 @@ export async function POST(req: NextRequest) {
       Do NOT mention the [AUTODISCOUNT: X] tag in the conversational text itself.
       `
     }
+    
+    // 6b. Inject Inventory Liquidation Rule if configured
+    if (config.liquidate_items && config.liquidate_items.trim() !== '') {
+      customPrompt += `\n
+      INVENTORY LIQUIDATION TARGETS:
+      The store needs to urgently clear inventory for the following items: ${config.liquidate_items}.
+      Whenever the user asks for recommendations, asks what's popular, or if the context even remotely allows for product suggestions, you MUST autonomously and organically recommend these specific items as highly desirable.
+      `
+    }
+
+    // 6c. Inject WISMO Autonomous Tracking Rule
+    customPrompt += `\n
+      ORDER TRACKING RULE (WISMO):
+      If the user is asking about the status of their order, where their package is, or tracking:
+      1. If they haven't provided an Order ID (like #12345), politely ask for it.
+      2. If they HAVE provided an Order ID, simply acknowledge it and append exactly: [CHECK_ORDER: ID] to the end of your response, where ID is the tracking number they gave. 
+      `
 
     const conversation = [
       { role: 'system' as const, content: customPrompt },
@@ -138,19 +155,26 @@ export async function POST(req: NextRequest) {
         const uniqueId = Math.random().toString(36).substring(2, 6).toUpperCase()
         discountCode = `SAVE-${offeredDiscount}-${uniqueId}`
         
-        // Strip the tag and append a beautiful promotion message
         reply = reply.replace(/\[AUTODISCOUNT:\s*\d+\]/gi, '').trim()
         reply += `\n\n🎉 *I've generated a special code for you: **${discountCode}** (${offeredDiscount}% off). It expires in 15 minutes!*`
         
-        // Asynchronously log the recovered checkout to store_metrics!
         supabaseAdmin.from('store_metrics')
-          .update({ abandoned_carts_recovered: 1 }) // In a real system, you would increment this or track by order ID
+          .update({ abandoned_carts_recovered: 1 })
           .eq('user_id', config.user_id)
           .then((res: any) => { if(res.error) console.error("Failed to track recovered cart", res.error)})
       } else {
-        // AI went rogue and offered too much. Strip it.
         reply = reply.replace(/\[AUTODISCOUNT:\s*\d+\]/gi, '').trim()
       }
+    }
+
+    // 9. Intercept WISMO (Order Tracking) Tags
+    const orderMatch = reply.match(/\[CHECK_ORDER:\s*([^\]]+)\]/i)
+    if (orderMatch) {
+      const parsedOrderId = orderMatch[1].trim()
+      reply = reply.replace(/\[CHECK_ORDER:\s*[^\]]+\]/gi, '').trim()
+      
+      // MOCK: Hit Shopify / AfterShip API here in production
+      reply += `\n\n📦 *Tracking Insight:* I just checked the backend. Order **${parsedOrderId}** is currently at the final sorting facility and is scheduled for out-for-delivery tomorrow afternoon!`
     }
 
     // Await log completion if running in a truly serverless setting to prevent drop

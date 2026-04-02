@@ -13,6 +13,7 @@ create table public.widget_configs (
   allow_topics text not null default 'products, pricing, shipping, returns',
   provider text not null default 'groq',
   max_discount int not null default 0,
+  liquidate_items text not null default '',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   unique(user_id)
